@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- SEO & Open Graph Tags -->
+    <title>Гуулин ЕБС - Салаалсан алгоритм</title>
+    <meta name="description" content="Мэдээллийн технологийн 9-р ангийн сурагчдад зориулсан Салаалсан алгоритмын интерактив хичээл.">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+    <style>
+        /* Custom Shapes */
+        .rhombus { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+        .parallelogram { clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%); }
+        
+        /* Animations */
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        
+        /* --- FIXED SLIDER STYLES --- */
+        input[type=range] {
+            -webkit-appearance: none; 
+            width: 100%; 
+            background: transparent; 
+            height: 30px; /* Increase height for touch area */
+            cursor: pointer;
+            margin: 0;
+        }
+        
+        input[type=range]:focus {
+            outline: none;
+        }
+
+        /* Thumb Styling (Webkit) */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 28px;
+            width: 28px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 4px solid #3b82f6; /* Tailwind blue-500 */
+            cursor: pointer;
+            margin-top: -10px; /* Aligns thumb with track */
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 20;
+        }
+
+        /* Track Styling (Webkit) */
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: transparent; /* Transparent so div behind shows */
+            border-radius: 4px;
+            border: none;
+        }
+
+        /* Thumb Styling (Firefox) */
+        input[type=range]::-moz-range-thumb {
+            height: 28px;
+            width: 28px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 4px solid #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 20;
+        }
+
+        /* Track Styling (Firefox) */
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: transparent;
+            border-radius: 4px;
+            border: none;
+        }
+        
+        /* SortableJS Styles */
+        .sortable-ghost { opacity: 0.4; background-color: #bfdbfe; border: 2px dashed #3b82f6; }
+        .sortable-drag { cursor: grabbing; opacity: 1; background: white; transform: scale(1.02); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .step-card { cursor: grab; touch-action: none; user-select: none; }
+        
+        #qrcode img { margin: 0 auto; border: 8px solid white; border-radius: 12px; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Slide Transitions */
+        .slide-container {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .slide-container.active-slide {
+            display: block;
+            opacity: 1;
+            animation: slideIn 0.5s ease-out forwards;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Toast Notification */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(30, 41, 59, 0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            backdrop-filter: blur(4px);
+            animation: toastIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Print Styles */
+        @media print {
+            .slide-container, #navigation-bar, header, .no-print, #toast-container { display: none !important; }
+            body { background: white; height: auto; overflow: visible; }
+            #printableWorksheet {
+                display: block !important;
+                visibility: visible !important;
+                position: relative;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+        }
+        #printableWorksheet { display: none; }
+        
+        /* Interactive States */
+        .rubric-btn.selected {
+            background-color: #eff6ff;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px #3b82f6;
+        }
+        .shape-btn.active {
+            background-color: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.4);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 pb-24 select-none h-screen flex flex-col overflow-hidden">
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Header -->
+    <header class="bg-indigo-900 text-white p-4 shadow-md flex justify-between items-center z-20 shrink-0 border-b border-indigo-800">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-lg flex items-center justify-center overflow-hidden border border-white/10 shadow-inner">
+                <img src="https://raw.githubusercontent.com/sodnomict-art/my-web-images/main/429003238_413778061128630_6168428532216527806_n_1251461419425659.png" alt="School Logo" class="w-full h-full object-cover">
+            </div>
+            <div>
+                <h1 class="text-lg md:text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-300 to-indigo-200 text-transparent bg-clip-text">Салаалсан алгоритм</h1>
+                <p class="text-indigo-200 text-[10px] md:text-xs uppercase tracking-wider font-bold">Гуулин ЕБС | Мэдээллийн технологи</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="window.print()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition hidden md:flex items-center gap-2 border border-white/5" title="Ажлын хуудас хэвлэх">
+                <span>🖨️</span> Хэвлэх
+            </button>
+            <div class="bg-white/10 px-3 py-1 rounded-full border border-white/10 text-xs font-bold font-mono">
+                <span id="slide-indicator">1 / 11</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 max-w-5xl mx-auto w-full relative" id="main-content">
+
+        <!-- 1. Сэдэлжүүлэгч симуляци -->
+        <section class="slide-container active-slide bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500 mb-8">
+            <div class="mb-8">
+                <span class="text-blue-600 font-bold text-xs uppercase tracking-widest mb-1 block">1. Сэдэлжүүлэлт</span>
+                <h2 class="text-2xl md:text-3xl font-black text-slate-900">Амьдралын жишээ: Хувцаслалт</h2>
+                <p class="text-slate-500 mt-2 text-sm md:text-base">Цаг агаараас хамаарч бид хэрхэн хувцаслахаа шийддэг. Энэ бол салаалсан алгоритм юм.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                <div class="space-y-8 flex flex-col justify-center">
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <p class="text-xs font-bold text-blue-800 mb-1 uppercase tracking-wide">Даалгавар:</p>
+                        <p class="text-sm text-blue-600 font-medium">Гулсуурыг хөдөлгөж температурыг өөрчилнө үү.</p>
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between items-end mb-4">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest">Гадаах температур:</label>
+                            <span id="tempDisplay" class="text-4xl font-black text-blue-600 tabular-nums">15°C</span>
+                        </div>
+                        
+                        <!-- Fixed Slider Container -->
+                        <div class="relative w-full h-10 flex items-center">
+                            <!-- Background Gradient Track -->
+                            <div class="absolute left-0 w-full h-3 bg-gradient-to-r from-blue-400 via-green-400 to-orange-400 rounded-full z-0 pointer-events-none"></div>
+                            <!-- Actual Input -->
+                            <input type="range" id="tempRange" min="-30" max="35" value="15" 
+                                   class="absolute w-full h-full z-10 appearance-none bg-transparent cursor-pointer">
+                        </div>
+
+                        <div class="flex justify-between text-[10px] mt-2 font-mono text-slate-400 font-bold">
+                            <span>-30°C (Хүйтэн)</span>
+                            <span>35°C (Халуун)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-center justify-center bg-white rounded-3xl p-8 shadow-sm border border-slate-200 relative overflow-hidden transition-colors duration-500 min-h-[200px]" id="avatarContainer">
+                    <div id="visualAvatar" class="text-8xl mb-4 animate-float transition-all duration-300 drop-shadow-xl">🏃</div>
+                    <div class="w-full pt-4 border-t border-slate-100 text-center relative z-10">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1 tracking-widest">Алгоритмын шийдвэр</p>
+                        <div id="decisionResult" class="font-bold text-lg text-slate-800 leading-tight">
+                            Сэрүүн байна, нимгэн куртка өмс.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Хичээлийн Сэдэв -->
+        <section class="slide-container bg-white p-0 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col relative">
+            <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+                <div class="absolute top-[-10%] right-[-5%] w-64 h-64 rounded-full bg-blue-50/80 blur-3xl"></div>
+                <div class="absolute bottom-[-10%] left-[-5%] w-64 h-64 rounded-full bg-indigo-50/80 blur-3xl"></div>
+                <div class="absolute inset-0 bg-[linear-gradient(rgba(241,245,249,0.4)_1px,transparent_1px),linear-gradient(90deg,rgba(241,245,249,0.4)_1px,transparent_1px)] bg-[size:20px_20px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)]"></div>
+            </div>
+
+            <div class="bg-slate-900 p-6 relative z-10 shrink-0 shadow-lg">
+                <div class="absolute inset-0 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900"></div>
+                <div class="absolute top-0 right-0 p-4 opacity-10 text-8xl transform rotate-12 select-none grayscale mix-blend-overlay">🚀</div>
+                <div class="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
+                
+                <div class="flex flex-col md:flex-row justify-between items-center relative z-20 gap-6">
+                    <div class="flex items-center gap-4 group">
+                        <div class="w-16 h-16 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/10 shadow-inner group-hover:bg-white/10 transition-colors overflow-hidden">
+                             <img src="https://raw.githubusercontent.com/sodnomict-art/my-web-images/main/429003238_413778061128630_6168428532216527806_n_1251461419425659.png" alt="School Logo" class="w-full h-full object-cover">
+                        </div>
+                        <div class="text-left text-white">
+                            <div class="inline-block px-2 py-0.5 bg-indigo-500/20 rounded border border-indigo-400/20 text-[10px] font-bold uppercase tracking-widest text-indigo-200 mb-1">Сургууль</div>
+                            <h3 class="font-bold text-lg leading-tight text-slate-100 group-hover:text-white transition-colors">ГУУЛИН ТОСГОНЫ<br>УЛСЫН ТЭРГҮҮНИЙ ЕБС</h3>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4 bg-white/5 px-6 py-2.5 rounded-xl border border-white/10 backdrop-blur-md shadow-lg">
+                        <div class="text-right text-white">
+                            <div class="text-[10px] font-bold uppercase tracking-widest text-indigo-300/80">Мэдээлэл зүйн багш</div>
+                            <div class="font-bold text-base tracking-wide">Б.Содномбалжир</div>
+                        </div>
+                        <div class="w-11 h-11 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg border-2 border-slate-800 text-lg relative">
+                            👨‍🏫
+                            <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-800 rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-center p-6 md:p-10 relative z-10">
+                <div class="text-center mb-10 relative">
+                    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 hover:shadow-md transition-shadow cursor-default">
+                        <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        Өнөөдрийн хичээл
+                    </div>
+                    <h2 class="text-4xl md:text-6xl font-black text-slate-900 mb-2 tracking-tight drop-shadow-sm">
+                        <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600">Салаалсан</span> Алгоритм
+                    </h2>
+                    <div class="w-32 h-1.5 bg-gradient-to-r from-blue-200 via-indigo-400 to-violet-200 mx-auto rounded-full my-4"></div>
+                    <p class="text-lg text-slate-500 font-medium max-w-2xl mx-auto">
+                        Програмчлалын үндсэн ойлголт болох <span class="text-indigo-600 font-bold">шийдвэр гаргах бүтцийг</span> судалцгаая.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-5xl mx-auto w-full pb-4">
+                    <!-- Knowledge -->
+                    <div class="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(59,130,246,0.1)] hover:shadow-[0_8px_30px_-4px_rgba(59,130,246,0.2)] hover:-translate-y-1 hover:border-blue-200 transition-all duration-300 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-[4rem] -mr-6 -mt-6 transition-transform group-hover:scale-110"></div>
+                        <div class="relative flex gap-5 items-start">
+                            <div class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl shrink-0 border border-blue-100 shadow-inner group-hover:rotate-6 transition-transform duration-300">📘</div>
+                            <div>
+                                <h4 class="font-extrabold text-slate-800 text-lg mb-2 group-hover:text-blue-600 transition-colors">Мэдлэг</h4>
+                                <p class="text-xs text-slate-500 leading-relaxed font-medium">Салаалсан алгоритмын бүтэц (if/else)-ийг таних, блок схемийн дүрсийг ялгах.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Skills -->
+                    <div class="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(34,197,94,0.1)] hover:shadow-[0_8px_30px_-4px_rgba(34,197,94,0.2)] hover:-translate-y-1 hover:border-green-200 transition-all duration-300 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-green-50 to-transparent rounded-bl-[4rem] -mr-6 -mt-6 transition-transform group-hover:scale-110"></div>
+                        <div class="relative flex gap-5 items-start">
+                            <div class="w-14 h-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center text-2xl shrink-0 border border-green-100 shadow-inner group-hover:rotate-6 transition-transform duration-300">🛠️</div>
+                            <div>
+                                <h4 class="font-extrabold text-slate-800 text-lg mb-2 group-hover:text-green-600 transition-colors">Чадвар</h4>
+                                <p class="text-xs text-slate-500 leading-relaxed font-medium">Өгөгдсөн асуудалд дүн шинжилгээ хийж, алдааг засах, дараалалд оруулах.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Application -->
+                    <div class="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(168,85,247,0.1)] hover:shadow-[0_8px_30px_-4px_rgba(168,85,247,0.2)] hover:-translate-y-1 hover:border-purple-200 transition-all duration-300 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-purple-50 to-transparent rounded-bl-[4rem] -mr-6 -mt-6 transition-transform group-hover:scale-110"></div>
+                        <div class="relative flex gap-5 items-start">
+                            <div class="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl shrink-0 border border-purple-100 shadow-inner group-hover:rotate-6 transition-transform duration-300">🚀</div>
+                            <div>
+                                <h4 class="font-extrabold text-slate-800 text-lg mb-2 group-hover:text-purple-600 transition-colors">Хэрэглээ</h4>
+                                <p class="text-xs text-slate-500 leading-relaxed font-medium">Олон салаатай алгоритм боловсруулах, үр дүнг тооцох.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Values -->
+                    <div class="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(245,158,11,0.1)] hover:shadow-[0_8px_30px_-4px_rgba(245,158,11,0.2)] hover:-translate-y-1 hover:border-amber-200 transition-all duration-300 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-amber-50 to-transparent rounded-bl-[4rem] -mr-6 -mt-6 transition-transform group-hover:scale-110"></div>
+                        <div class="relative flex gap-5 items-start">
+                            <div class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl shrink-0 border border-amber-100 shadow-inner group-hover:rotate-6 transition-transform duration-300">💎</div>
+                            <div>
+                                <h4 class="font-extrabold text-slate-800 text-lg mb-2 group-hover:text-amber-600 transition-colors">Үнэт зүйл</h4>
+                                <p class="text-xs text-slate-500 leading-relaxed font-medium">Логик сэтгэлгээгээр асуудлыг шийдвэрлэх, бүтээлчээр суралцах.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Онолын хэсэг -->
+        <section class="slide-container grid grid-cols-1 lg:grid-cols-2 gap-8 items-center h-full content-center" style="display: none;">
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 z-0"></div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-6 border-l-4 border-blue-500 pl-4 relative z-10">3. Үндсэн ойлголт</h2>
+                <div class="space-y-6 text-slate-600 relative z-10">
+                    <p class="leading-relaxed">Алгоритмын тодорхой нэг алхамд <strong>нөхцөл</strong> шалгаж, тэрхүү нөхцөл биелсэн эсэхээс хамааран өөр өөр үйлдлүүдийг гүйцэтгэхийг <span class="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded">салаалсан бүтэц</span> гэнэ.</p>
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                        <p class="text-sm font-bold text-slate-800 mb-2">Нөхцөл гэж юу вэ?</p>
+                        <p class="text-sm">Ихэвчлэн харьцуулах үйлдлээр (<code class="bg-white px-1 rounded border border-slate-200">>, <, =, !=</code>) илэрхийлэгдэх бөгөөд <strong>"Тийм" (True)</strong> эсвэл <strong>"Үгүй" (False)</strong> гэсэн хариу авна.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-indigo-900 p-8 rounded-3xl text-white shadow-2xl relative overflow-hidden flex flex-col min-h-[420px]">
+                <div class="absolute inset-0 bg-gradient-to-br from-indigo-900 to-blue-900"></div>
+                <div class="relative z-10">
+                    <h3 class="font-bold text-indigo-200 mb-6 uppercase text-[10px] tracking-[0.2em] text-center border-b border-indigo-700 pb-4">Блок схемийн дүрсүүд (Дарж үзнэ үү)</h3>
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <button onclick="showShapeInfo('start', this)" class="shape-btn group flex flex-col items-center p-4 bg-white/10 rounded-xl hover:bg-white/20 transition border border-white/10 hover:border-white/20 active:scale-95 outline-none">
+                            <div class="w-12 h-6 bg-orange-400 rounded-full mb-3 shadow-[0_0_15px_rgba(251,146,60,0.4)] group-hover:shadow-[0_0_20px_rgba(251,146,60,0.6)] transition-shadow"></div>
+                            <span class="text-[10px] font-bold text-indigo-100 group-hover:text-white">Эхлэл / Төгсгөл</span>
+                        </button>
+                        
+                        <button onclick="showShapeInfo('io', this)" class="shape-btn group flex flex-col items-center p-4 bg-white/10 rounded-xl hover:bg-white/20 transition border border-white/10 hover:border-white/20 active:scale-95 outline-none">
+                            <div class="w-12 h-6 bg-blue-400 parallelogram mb-3 shadow-[0_0_15px_rgba(96,165,250,0.4)] group-hover:shadow-[0_0_20px_rgba(96,165,250,0.6)] transition-shadow"></div>
+                            <span class="text-[10px] font-bold text-indigo-100 group-hover:text-white">Оролт / Гаралт</span>
+                        </button>
+                        
+                        <button onclick="showShapeInfo('decision', this)" class="shape-btn group flex flex-col items-center p-4 bg-white/10 rounded-xl hover:bg-white/20 transition border border-white/10 hover:border-white/20 active:scale-95 outline-none">
+                            <div class="w-10 h-10 bg-red-400 rhombus mb-3 shadow-[0_0_15px_rgba(248,113,113,0.4)] group-hover:shadow-[0_0_20px_rgba(248,113,113,0.6)] transition-shadow"></div>
+                            <span class="text-[10px] font-bold text-indigo-100 group-hover:text-white">Нөхцөл шалгах</span>
+                        </button>
+                        
+                        <button onclick="showShapeInfo('process', this)" class="shape-btn group flex flex-col items-center p-4 bg-white/10 rounded-xl hover:bg-white/20 transition border border-white/10 hover:border-white/20 active:scale-95 outline-none">
+                            <div class="w-12 h-8 bg-indigo-400 mb-3 shadow-[0_0_15px_rgba(129,140,248,0.4)] group-hover:shadow-[0_0_20px_rgba(129,140,248,0.6)] transition-shadow"></div>
+                            <span class="text-[10px] font-bold text-indigo-100 group-hover:text-white">Үйлдэл</span>
+                        </button>
+                    </div>
+                    <div id="shapeDescription" class="mt-auto p-5 bg-black/20 rounded-xl text-center border border-white/10 min-h-[90px] flex flex-col items-center justify-center transition-all duration-300">
+                        <p class="text-indigo-200 text-xs animate-pulse flex items-center gap-2">
+                            <span>👆</span> Дүрс дээр дарж тайлбарыг харна уу.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4-8. Түвшин 1-5 (Levels kept as is for flow) -->
+        <!-- ... Levels 1-5 Code kept concise ... -->
+        <section class="slide-container bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+            <div class="flex items-center gap-4 mb-8">
+                <span class="bg-green-500 text-white w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-green-200">1</span>
+                <div><h2 class="text-xl font-bold text-slate-900">Дасгал 1: Алдааг олох</h2><p class="text-sm text-slate-500">Логикийн алдааг илрүүлж засах</p></div>
+            </div>
+            <div class="bg-red-50 p-6 rounded-2xl border border-red-100 mb-8 flex gap-4 items-start">
+                <div class="text-2xl">⚠️</div>
+                <div><p class="font-bold text-red-900 text-sm mb-1 uppercase tracking-wide">Асуудал:</p><p class="text-red-700 text-sm leading-relaxed">"Хэрэв тоо 10-аас их бол 'Их' гэж хэвлээд дуусна. Харин бага байвал 'Бага' гэж хэвлэх ёстой. Гэтэл схемд нэг зүйл дутуу байна."</p></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+                <div class="bg-white p-8 border border-slate-100 rounded-2xl shadow-sm space-y-3 text-center text-[10px] font-mono relative">
+                    <div class="bg-orange-100 border border-orange-200 p-1.5 rounded-full w-24 mx-auto text-orange-800">Эхлэл</div><div class="text-slate-300">↓</div>
+                    <div class="bg-blue-100 border border-blue-200 p-1.5 parallelogram mx-auto w-32 text-blue-800">X оруулах</div><div class="text-slate-300">↓</div>
+                    <div class="bg-red-100 border border-red-200 w-24 h-24 mx-auto rhombus flex items-center justify-center text-center leading-tight text-red-800 shadow-sm relative z-10">X > 10?</div>
+                    <div class="flex justify-between px-10 relative -top-4 text-xs font-bold w-full max-w-[280px] mx-auto"><span class="text-green-600 bg-white px-1 z-0">Тийм</span><span class="text-red-600 bg-white px-1 z-0">Үгүй</span></div>
+                    <div class="flex justify-between w-full max-w-[280px] mx-auto relative -top-2"><div class="bg-indigo-100 border border-indigo-200 p-2 w-20 text-indigo-800 rounded">"Их"</div><div class="bg-slate-100 border-2 border-dashed border-slate-300 p-2 w-20 text-slate-400 flex items-center justify-center h-8 rounded animate-pulse">???</div></div>
+                </div>
+                <div class="space-y-3">
+                    <p class="font-bold text-slate-700 text-sm mb-2">Дутуу байгаа хэсгийг сонгоно уу:</p>
+                    <button onclick="checkLevel1(false, this)" class="w-full p-4 text-left border rounded-xl hover:bg-slate-50 transition hover:border-slate-300 text-sm group focus:outline-none focus:ring-2 focus:ring-blue-200"><span class="font-bold text-slate-400 mr-2 group-hover:text-slate-600">А.</span> Дахин тоо оруулах</button>
+                    <button onclick="checkLevel1(true, this)" class="w-full p-4 text-left border rounded-xl hover:bg-slate-50 transition hover:border-slate-300 text-sm group focus:outline-none focus:ring-2 focus:ring-blue-200"><span class="font-bold text-slate-400 mr-2 group-hover:text-slate-600">Б.</span> "Бага" гэж хэвлэх үйлдэл</button>
+                    <button onclick="checkLevel1(false, this)" class="w-full p-4 text-left border rounded-xl hover:bg-slate-50 transition hover:border-slate-300 text-sm group focus:outline-none focus:ring-2 focus:ring-blue-200"><span class="font-bold text-slate-400 mr-2 group-hover:text-slate-600">В.</span> Шууд Төгсгөл рүү очих</button>
+                    <p id="feedback1" class="font-bold pt-2 text-sm min-h-[24px]"></p>
+                </div>
+            </div>
+        </section>
+
+        <section class="slide-container bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+             <div class="flex items-center gap-4 mb-6"><span class="bg-yellow-500 text-white w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-yellow-200">2</span><div><h2 class="text-xl font-bold text-slate-900">Дасгал 2: Дараалалд оруулах</h2><p class="text-sm text-slate-500">Логик дарааллыг зөв тогтоох</p></div></div>
+             <div class="bg-yellow-50 p-5 rounded-2xl border border-yellow-100 text-yellow-900 text-sm mb-8 flex items-start gap-3"><span class="text-xl">🛒</span><p class="leading-relaxed"><strong>Даалгавар:</strong> "Дэлгүүрт ороод хэрэв сүү байвал сүү авна, үгүй бол тараг аваад харина."</p></div>
+             <div id="stepsContainer" class="space-y-3 touch-none max-w-2xl mx-auto">
+                <div class="flex items-center gap-4 bg-white p-4 rounded-xl border-2 border-slate-100 step-card shadow-sm hover:border-blue-400 hover:shadow-md transition-all active:cursor-grabbing" data-order="3"><span class="text-slate-300 text-xl cursor-move">⋮⋮</span><div class="flex-1"><span class="text-[10px] font-bold text-red-500 uppercase tracking-wide bg-red-50 px-2 py-0.5 rounded mr-2">Нөхцөл</span><span class="font-medium text-slate-700">Сүү байна уу?</span></div></div>
+                <div class="flex items-center gap-4 bg-white p-4 rounded-xl border-2 border-slate-100 step-card shadow-sm hover:border-blue-400 hover:shadow-md transition-all active:cursor-grabbing" data-order="1"><span class="text-slate-300 text-xl cursor-move">⋮⋮</span><div class="flex-1"><span class="text-[10px] font-bold text-orange-500 uppercase tracking-wide bg-orange-50 px-2 py-0.5 rounded mr-2">Эхлэл</span><span class="font-medium text-slate-700">Дэлгүүрт орох</span></div></div>
+                <div class="flex items-center gap-4 bg-white p-4 rounded-xl border-2 border-slate-100 step-card shadow-sm hover:border-blue-400 hover:shadow-md transition-all active:cursor-grabbing" data-order="4"><span class="text-slate-300 text-xl cursor-move">⋮⋮</span><div class="flex-1"><span class="text-[10px] font-bold text-indigo-500 uppercase tracking-wide bg-indigo-50 px-2 py-0.5 rounded mr-2">Үйлдэл</span><span class="font-medium text-slate-700">Тийм: Сүү авах | Үгүй: Тараг авах</span></div></div>
+                <div class="flex items-center gap-4 bg-white p-4 rounded-xl border-2 border-slate-100 step-card shadow-sm hover:border-blue-400 hover:shadow-md transition-all active:cursor-grabbing" data-order="2"><span class="text-slate-300 text-xl cursor-move">⋮⋮</span><div class="flex-1"><span class="text-[10px] font-bold text-blue-500 uppercase tracking-wide bg-blue-50 px-2 py-0.5 rounded mr-2">Өгөгдөл</span><span class="font-medium text-slate-700">Тавиур дээрх барааг харах</span></div></div>
+                <div class="flex items-center gap-4 bg-white p-4 rounded-xl border-2 border-slate-100 step-card shadow-sm hover:border-blue-400 hover:shadow-md transition-all active:cursor-grabbing" data-order="5"><span class="text-slate-300 text-xl cursor-move">⋮⋮</span><div class="flex-1"><span class="text-[10px] font-bold text-orange-500 uppercase tracking-wide bg-orange-50 px-2 py-0.5 rounded mr-2">Төгсгөл</span><span class="font-medium text-slate-700">Гэртээ харих</span></div></div>
+            </div>
+            <div class="text-center mt-8"><button onclick="checkStepOrder()" class="bg-yellow-500 text-white px-10 py-3 rounded-xl font-bold hover:bg-yellow-600 shadow-lg shadow-yellow-200 active:scale-95 transition flex items-center gap-2 mx-auto"><span>✨</span> Дарааллыг шалгах</button><p id="stepFeedback" class="mt-4 font-bold min-h-[24px] transition-all"></p></div>
+        </section>
+
+        <section class="slide-container bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+            <div class="flex items-center gap-4 mb-6"><span class="bg-red-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-red-200">3</span><div><h2 class="text-xl font-bold text-slate-900">Дасгал 3: Дүн тооцох</h2><p class="text-sm text-slate-500">Олон салаатай (nested if) алгоритм</p></div></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div class="space-y-6">
+                    <p class="text-slate-600 text-sm leading-relaxed">Сурагчийн оноог үсгэн үнэлгээ (A, B, C, D, F)-д шилжүүлэх алгоритмыг туршиж үзээрэй.</p>
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200"><label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Оноо оруулна уу (0-100):</label><div class="flex gap-2"><input type="number" id="gradeInput" min="0" max="100" placeholder="85" class="w-full p-4 border-2 border-slate-200 rounded-xl text-xl font-bold focus:border-blue-500 focus:bg-white outline-none transition text-center bg-slate-100"><button onclick="calculateGrade()" class="bg-blue-600 text-white px-6 rounded-xl font-bold hover:bg-blue-700 shadow-lg active:scale-95 transition">Бодох</button></div></div>
+                </div>
+                <div class="bg-indigo-900 rounded-3xl p-6 text-white relative shadow-2xl min-h-[340px] flex flex-col font-mono text-xs overflow-hidden">
+                    <div class="flex justify-between items-center text-indigo-300 mb-4 border-b border-indigo-800 pb-2"><span class="uppercase tracking-widest font-bold">System Log</span><span id="gradeTime" class="text-[10px]"></span></div>
+                    <div id="gradeSteps" class="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar"><div class="text-indigo-400 italic">// Алгоритм хүлээж байна...</div></div>
+                    <div id="finalGradeBox" class="mt-4 pt-4 border-t border-indigo-800 text-center hidden"><div class="text-indigo-300 text-[10px] uppercase mb-1">Үр дүн</div><div id="gradeLetter" class="text-6xl font-black text-white animate-bounce inline-block">A</div><div id="gradeMsg" class="text-sm mt-1 text-indigo-200 font-sans"></div></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="slide-container bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+             <div class="flex items-center gap-4 mb-6"><span class="bg-purple-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-purple-200">4</span><div><h2 class="text-xl font-bold text-slate-900">Дасгал 4: Гэрлэн дохио</h2><p class="text-sm text-slate-500">Олон нөхцөлт салаалсан бүтэц</p></div></div>
+            <div class="flex flex-col md:flex-row gap-10 items-center bg-slate-50 p-8 rounded-3xl border border-slate-100">
+                <div class="flex flex-col gap-4 bg-slate-800 p-5 rounded-3xl border-4 border-slate-700 shadow-2xl"><div id="lightRed" class="w-16 h-16 rounded-full bg-red-900/40 transition-all duration-300 border-4 border-black/20 shadow-inner"></div><div id="lightYellow" class="w-16 h-16 rounded-full bg-yellow-900/40 transition-all duration-300 border-4 border-black/20 shadow-inner"></div><div id="lightGreen" class="w-16 h-16 rounded-full bg-green-900/40 transition-all duration-300 border-4 border-black/20 shadow-inner"></div></div>
+                <div class="flex-1 space-y-6 w-full">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><p class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Нөхцөл сонгох:</p><div class="grid grid-cols-3 gap-3"><button onclick="testTraffic('red')" class="py-4 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 border border-red-100 transition active:scale-95">Улаан</button><button onclick="testTraffic('yellow')" class="py-4 bg-yellow-50 text-yellow-600 rounded-xl font-bold hover:bg-yellow-100 border border-yellow-100 transition active:scale-95">Шар</button><button onclick="testTraffic('green')" class="py-4 bg-green-50 text-green-600 rounded-xl font-bold hover:bg-green-100 border border-green-100 transition active:scale-95">Ногоон</button></div></div>
+                    <div id="trafficOutput" class="p-6 bg-slate-800 rounded-2xl text-center font-bold text-slate-400 min-h-[80px] flex items-center justify-center transition-all duration-300 shadow-inner text-lg">Өнгө сонгоно уу...</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="slide-container bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+            <div class="flex items-center gap-4 mb-6"><span class="bg-pink-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-pink-200">5</span><div><h2 class="text-xl font-bold text-slate-900">Дасгал 5: Логик бодлого</h2><p class="text-sm text-slate-500">Алгоритмын гаралтыг урьдчилан тооцоолох</p></div></div>
+            <div class="bg-indigo-900 p-6 rounded-2xl font-mono text-sm space-y-3 mb-8 shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-4 opacity-10 text-white text-4xl font-black">CODE</div>
+                <div class="flex gap-4"><span class="text-indigo-400 select-none">1</span><p class="text-indigo-100"><span class="text-purple-400">var</span> <span class="text-yellow-200">x</span> = <span class="text-blue-300">12</span>;</p></div>
+                <div class="flex gap-4"><span class="text-indigo-400 select-none">2</span><p class="text-indigo-100"><span class="text-purple-400">if</span> (<span class="text-yellow-200">x</span> % <span class="text-blue-300">2</span> == <span class="text-blue-300">0</span>) { <span class="text-indigo-400">// Тэгш тоо эсэх?</span></p></div>
+                <div class="flex gap-4"><span class="text-indigo-400 select-none">3</span><p class="pl-4 text-indigo-100"><span class="text-yellow-200">result</span> = <span class="text-yellow-200">x</span> / <span class="text-blue-300">2</span>;</p></div>
+                <div class="flex gap-4"><span class="text-indigo-400 select-none">4</span><p class="text-indigo-100">} <span class="text-purple-400">else</span> {</p></div>
+                <div class="flex gap-4"><span class="text-indigo-400 select-none">5</span><p class="pl-4 text-indigo-100"><span class="text-yellow-200">result</span> = <span class="text-yellow-200">x</span> * <span class="text-blue-300">2</span>;</p></div>
+                <div class="flex gap-4"><span class="text-indigo-400 select-none">6</span><p class="text-indigo-100">}</p></div>
+                <div class="flex gap-4 border-t border-indigo-700 pt-2 mt-2"><span class="text-indigo-400 select-none">7</span><p class="text-indigo-100"><span class="text-green-400">print</span>(<span class="text-yellow-200">result</span>);</p></div>
+            </div>
+            <div class="space-y-6">
+                <p class="text-slate-800 font-bold text-center text-lg">Гаралт хэд байх вэ?</p>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="logicButtons">
+                    <button onclick="checkLogic(6, this)" class="p-5 border-2 rounded-2xl hover:bg-slate-50 font-bold text-xl transition hover:border-slate-300 bg-white text-slate-700">6</button>
+                    <button onclick="checkLogic(24, this)" class="p-5 border-2 rounded-2xl hover:bg-slate-50 font-bold text-xl transition hover:border-slate-300 bg-white text-slate-700">24</button>
+                    <button onclick="checkLogic(12, this)" class="p-5 border-2 rounded-2xl hover:bg-slate-50 font-bold text-xl transition hover:border-slate-300 bg-white text-slate-700">12</button>
+                    <button onclick="checkLogic(14, this)" class="p-5 border-2 rounded-2xl hover:bg-slate-50 font-bold text-xl transition hover:border-slate-300 bg-white text-slate-700">14</button>
+                </div>
+                <p id="logicFeedback" class="font-bold text-center min-h-[30px] text-lg"></p>
+            </div>
+        </section>
+
+        <!-- 9. Өөрийн үнэлгээ -->
+        <section class="slide-container relative overflow-hidden rounded-[3rem] bg-indigo-900 p-8 md:p-12 text-white shadow-2xl mb-24">
+             <!-- ... Summary & Audio Record section same as before ... -->
+             <div class="absolute -right-20 -top-20 h-96 w-96 animate-pulse rounded-full bg-blue-600/20 blur-3xl"></div>
+             <div class="absolute -bottom-20 -left-20 h-96 w-96 animate-pulse rounded-full bg-purple-600/20 blur-3xl" style="animation-delay: 1.5s;"></div>
+             <div class="relative z-10 mx-auto max-w-4xl text-center">
+                 <h2 class="mb-4 text-3xl font-extrabold tracking-tight text-white">Хичээлийн Дүгнэлт</h2>
+                 <p class="mx-auto mb-10 max-w-2xl text-lg text-indigo-200">Та өнөөдөр юу сурсан бэ?</p>
+                 <!-- ... simplified for brevity, assume same content ... -->
+                 <div class="grid grid-cols-1 gap-8 rounded-[2.5rem] border border-white/10 bg-white/5 p-8 backdrop-blur-md lg:grid-cols-2">
+                     <div class="flex flex-col justify-center space-y-6">
+                         <div class="text-left"><h3 class="mb-1 flex items-center gap-2 text-xl font-bold text-white"><span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span> Дуут тэмдэглэл</h3><p class="text-sm text-indigo-200">Өөрийн үгээр 1 минутад багтаан тайлбарлаарай.</p></div>
+                         <div class="relative overflow-hidden rounded-3xl bg-black/20 p-1 shadow-inner"><button id="recordBtn" class="group relative flex w-full items-center justify-center gap-4 rounded-[1.3rem] bg-white py-6 text-lg font-black text-indigo-900 transition-all hover:bg-indigo-50 active:scale-[0.98]"><div id="recordIcon" class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600 transition-colors group-hover:bg-red-200"><div class="h-4 w-4 rounded-full bg-red-600"></div></div><span id="recordText">Бичлэг эхлүүлэх</span></button></div>
+                         <div id="audioArea" class="hidden"><div class="rounded-xl bg-indigo-800/50 p-4 border border-indigo-500/30"><audio id="playback" controls class="h-10 w-full opacity-90"></audio></div></div>
+                     </div>
+                     <div class="relative flex flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/5 p-6 text-center lg:border-l lg:border-white/10 lg:bg-transparent lg:border-t-0 lg:border-r-0 lg:border-b-0">
+                         <div class="group relative mb-4 rounded-2xl bg-white p-3 shadow-2xl transition-transform hover:scale-105"><div id="qrcode" class="overflow-hidden rounded-xl"></div><div class="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg">📱</div></div>
+                         <button id="copyLinkBtn" onclick="copyLink()" class="flex items-center justify-center gap-2 rounded-lg bg-indigo-600/50 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-600 transition border border-indigo-400/30 w-full"><span>🔗</span> Холбоосыг хуулах</button>
+                     </div>
+                 </div>
+             </div>
+        </section>
+
+        <!-- 10. REVISED: Batatgah Ajliin Huudas (Matches Print Version) -->
+        <section class="slide-container bg-white p-0 rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+            <!-- Header -->
+            <div class="bg-indigo-900 p-6 text-white flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-black uppercase tracking-tight">Цахим Ажлын Хуудас</h2>
+                    <p class="text-indigo-200 text-sm">Мэдлэгээ шалгах дасгалууд</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs font-mono opacity-70">Огноо: <span id="currentDate"></span></p>
+                </div>
+            </div>
+
+            <div class="p-6 md:p-8 space-y-8">
+                
+                <!-- Student Info Section -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col md:flex-row gap-4 md:items-end shadow-sm">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 ml-1">Сурагчийн нэр</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">👤</span>
+                            <input type="text" placeholder="Энд нэрээ бичнэ үү..." class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm">
+                        </div>
+                    </div>
+                    <div class="w-full md:w-1/3">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 ml-1">Анги</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🏫</span>
+                            <select class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm appearance-none cursor-pointer">
+                                <option value="">Анги сонгох...</option>
+                                <option value="9A">9A</option>
+                                <option value="9B">9B</option>
+                                <option value="9C">9C</option>
+                                <option value="9D">9D</option>
+                                <option value="9E">9Е</option>
+                            </select>
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs">▼</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Theory Cheat Sheet (Collapsible) -->
+                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                    <details class="group">
+                        <summary class="flex justify-between items-center font-bold text-indigo-900 cursor-pointer list-none">
+                            <span>📌 Онолын Санамж (Дэлгэрүүлж харах)</span>
+                            <span class="transition group-open:rotate-180">▼</span>
+                        </summary>
+                        <div class="text-sm text-indigo-800 mt-4 space-y-2 border-t border-indigo-200 pt-3">
+                            <p><strong>Салаалсан алгоритм:</strong> Нөхцөл шалгаад, үр дүнгээс нь ("Тийм/Үгүй") хамаарч өөр үйлдлүүд хийх бүтэц.</p>
+                            <p><strong>Түлхүүр үгс:</strong> IF (Хэрэв), THEN (Тэгвэл), ELSE (Үгүй бол).</p>
+                            <div class="flex gap-4 mt-2">
+                                <span class="bg-white px-2 py-1 rounded border border-indigo-200 text-xs">◇ Ромбо: Нөхцөл</span>
+                                <span class="bg-white px-2 py-1 rounded border border-indigo-200 text-xs">▭ Тэгш өнцөгт: Үйлдэл</span>
+                                <span class="bg-white px-2 py-1 rounded border border-indigo-200 text-xs">▱ Параллелограмм: Оролт/Гаралт</span>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    
+                    <!-- Task 1: Connect Shapes -->
+                    <div class="space-y-4">
+                        <h3 class="font-bold text-lg border-b pb-2">1. Дүрсийг нэрлэ</h3>
+                        <p class="text-sm text-slate-500 italic mb-2">Зөв хариултыг сонгоно уу.</p>
+                        
+                        <div class="flex items-center gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="w-10 h-10 flex items-center justify-center bg-slate-100 rounded">
+                                <div class="w-6 h-6 border-2 border-slate-700 rhombus"></div>
+                            </div>
+                            <select id="ws-q1" class="flex-1 p-2 bg-slate-50 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Үүрэг нь юу вэ?</option>
+                                <option value="decision">Нөхцөл шалгах (Decision)</option>
+                                <option value="process">Үйлдэл (Process)</option>
+                                <option value="io">Оролт / Гаралт</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="w-10 h-10 flex items-center justify-center bg-slate-100 rounded">
+                                <div class="w-8 h-5 border-2 border-slate-700 parallelogram"></div>
+                            </div>
+                            <select id="ws-q2" class="flex-1 p-2 bg-slate-50 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Үүрэг нь юу вэ?</option>
+                                <option value="start">Эхлэл / Төгсгөл</option>
+                                <option value="io">Оролт / Гаралт (Input/Output)</option>
+                                <option value="process">Үйлдэл</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Task 2: Flowchart Logic -->
+                    <div class="space-y-4">
+                        <h3 class="font-bold text-lg border-b pb-2">2. Блок схем гүйцээх</h3>
+                        <p class="text-sm text-slate-500 italic mb-2">Гэрлэн дохионы схемд аль дүрс дутуу байна вэ?</p>
+                        
+                        <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-4 flex flex-col items-center opacity-80 hover:opacity-100 transition">
+                             <div class="border border-slate-800 rounded-full px-2 py-0.5 text-[10px] bg-white mb-1">Эхлэл</div>
+                             <div class="h-2 border-l border-slate-800"></div>
+                             <div class="border border-slate-800 parallelogram px-2 py-0.5 text-[10px] bg-white mb-1">Өнгө харах</div>
+                             <div class="h-2 border-l border-slate-800"></div>
+                             <div class="w-20 h-16 border-2 border-blue-500 bg-blue-50 flex items-center justify-center text-blue-600 text-2xl font-bold rounded animate-pulse">?</div>
+                             <div class="flex gap-8 text-[9px] mt-1"><span class="text-red-500">Улаан</span><span class="text-green-500">Ногоон</span></div>
+                        </div>
+
+                        <div class="flex gap-2 justify-center">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="ws-flow" value="wrong" class="peer sr-only">
+                                <div class="px-3 py-2 rounded-lg border border-slate-200 peer-checked:bg-blue-600 peer-checked:text-white text-xs font-bold transition">Тэгш өнцөгт</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="ws-flow" value="correct" class="peer sr-only">
+                                <div class="px-3 py-2 rounded-lg border border-slate-200 peer-checked:bg-blue-600 peer-checked:text-white text-xs font-bold transition">Ромбо (Шийдвэр)</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Task 3: Code Trace (Full Width) -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <h3 class="font-bold text-lg border-b pb-2">3. Алгоритмын мөрөөр мөшгих</h3>
+                        <div class="flex flex-col md:flex-row gap-6">
+                            <div class="md:w-1/3 bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs shadow-inner">
+                                <p>1. INPUT score</p>
+                                <p>2. IF (score >= 60) THEN</p>
+                                <p class="pl-4">3. status = "Тэнцсэн"</p>
+                                <p>4. ELSE</p>
+                                <p class="pl-4">5. status = "Унасан"</p>
+                                <p>6. PRINT status</p>
+                            </div>
+                            <div class="md:w-2/3">
+                                <p class="text-sm mb-2">Хэрэв <strong>score = 45</strong> бол хүснэгтийг бөглө:</p>
+                                <table class="w-full text-sm border-collapse">
+                                    <tr class="bg-slate-100 text-xs uppercase text-slate-500">
+                                        <th class="p-2 border text-left">Алхам</th>
+                                        <th class="p-2 border text-left">Асуулт / Утга</th>
+                                        <th class="p-2 border text-left">Хариулт</th>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-2 border font-mono">2</td>
+                                        <td class="p-2 border">45 >= 60 үнэн үү?</td>
+                                        <td class="p-2 border">
+                                            <select id="ws-trace1" class="w-full bg-transparent outline-none font-bold text-blue-600">
+                                                <option value="">?</option>
+                                                <option value="true">Тийм (True)</option>
+                                                <option value="false">Үгүй (False)</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-2 border font-mono">5</td>
+                                        <td class="p-2 border">status -д ямар утга орох вэ?</td>
+                                        <td class="p-2 border">
+                                            <input type="text" id="ws-trace2" placeholder="энд бич..." class="w-full bg-transparent outline-none border-b border-dashed border-slate-300 focus:border-blue-500">
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Self Check -->
+                    <div class="lg:col-span-2 border-t pt-6">
+                        <h4 class="font-bold text-sm uppercase tracking-wide text-slate-500 mb-4">Өөрийн үнэлгээ:</h4>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition select-none">
+                                <input type="checkbox" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+                                <span class="text-sm">IF/ELSE бүтцийг ойлгосон</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition select-none">
+                                <input type="checkbox" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+                                <span class="text-sm">Блок схемийн дүрсийг мэднэ</span>
+                            </label>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="text-center pt-4">
+                    <button onclick="checkWorksheetRevised()" class="bg-indigo-600 text-white px-12 py-4 rounded-xl font-bold hover:bg-indigo-700 shadow-lg hover:shadow-indigo-200 hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-2 mx-auto">
+                        <span>✨</span> Хариултыг илгээх & Шалгах
+                    </button>
+                    <div id="ws-revised-feedback" class="mt-4 font-bold min-h-[40px] transition-all"></div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 11. Unelgeenii Rubric -->
+        <section class="slide-container bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+            <!-- ... Rubric content kept same ... -->
+             <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4"><div><h2 class="text-2xl font-black text-slate-900 mb-1">Үнэлгээний Хуудас</h2><p class="text-sm text-slate-500">Гүйцэтгэлийн шалгуур (Рубрик) -д суурилсан өөрийн үнэлгээ</p></div><div class="text-right bg-slate-50 px-4 py-2 rounded-xl border border-slate-100"><div class="text-[10px] uppercase font-bold text-slate-400">Нийт оноо</div><div id="totalScore" class="text-3xl font-black text-blue-600 leading-none">0/15</div><div id="finalVerdict" class="text-[10px] font-bold uppercase tracking-wide text-slate-400 mt-1">Үнэлгээ хүлээж байна...</div></div></div>
+             <div class="space-y-4 mb-8">
+                <!-- Criterion 1 -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 transition-colors hover:border-blue-200"><h3 class="font-bold text-slate-800 mb-3 flex items-center gap-2 text-sm"><span class="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs">1</span> Симуляци ба Ойлголт (if/else)</h3><div class="grid grid-cols-1 md:grid-cols-3 gap-3"><button onclick="rateSelf(1, 2, this)" class="rubric-btn p-3 rounded-xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition group"><span class="block text-xs font-bold text-slate-400 mb-1 group-hover:text-slate-600">Хангалтгүй (1-2)</span><p class="text-[10px] text-slate-500 leading-snug">Логикийг тайлбарлаж чадахгүй.</p></button><button onclick="rateSelf(1, 4, this)" class="rubric-btn p-3 rounded-xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition group"><span class="block text-xs font-bold text-yellow-500 mb-1 group-hover:text-yellow-600">Дунд (3-4)</span><p class="text-[10px] text-slate-500 leading-snug">Оролт, гаралтыг ялгаж, энгийн үгээр тайлбарласан.</p></button><button onclick="rateSelf(1, 5, this)" class="rubric-btn p-3 rounded-xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition group"><span class="block text-xs font-bold text-green-500 mb-1 group-hover:text-green-600">Сайн (5)</span><p class="text-[10px] text-slate-500 leading-snug">Бодит амьдралын жишээ дээр бүрэн тайлбарласан.</p></button></div></div>
+                <!-- Criterion 2 -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 transition-colors hover:border-blue-200"><h3 class="font-bold text-slate-800 mb-3 flex items-center gap-2 text-sm"><span class="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs">2</span> Дасгал гүйцэтгэл (Levels 1-5)</h3><div class="grid grid-cols-1 md:grid-cols-3 gap-3"><button onclick="rateSelf(2, 2, this)" class="rubric-btn p-3 rounded-xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition group"><span class="block text-xs font-bold text-slate-400 mb-1 group-hover:text-slate-600">Хангалтгүй (1-2)</span><p class="text-[10px] text-slate-500 leading-snug">Түвшин 1-ийн алдааг олж чадаагүй.</p></button><button onclick="rateSelf(2, 4, this)" class="rubric-btn p-3 rounded-xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition group"><span class="block text-xs font-bold text-yellow-500 mb-1 group-hover:text-yellow-600">Дунд (3-4)</span><p class="text-[10px] text-slate-500 leading-snug">Түвшин 1, 2-ыг зөв гүйцэтгэсэн.</p></button><button onclick="rateSelf(2, 5, this)" class="rubric-btn p-3 rounded-xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition group"><span class="block text-xs font-bold text-green-500 mb-1 group-hover:text-green-600">Сайн (5)</span><p class="text-[10px] text-slate-500 leading-snug">Бүх түвшинг алдаагүй гүйцэтгэсэн.</p></button></div></div>
+                <!-- Criterion 3 -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 transition-colors hover:border-blue-200"><h3 class="font-bold text-slate-800 mb-3 flex items-center gap-2 text-sm"><span class="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs">3</span> Ярих чадвар (Audio)</h3><div class="grid grid-cols-1 md:grid-cols-3 gap-3"><button onclick="rateSelf(3, 2, this)" class="rubric-btn p-3 rounded-xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition group"><span class="block text-xs font-bold text-slate-400 mb-1 group-hover:text-slate-600">Хангалтгүй (1-2)</span><p class="text-[10px] text-slate-500 leading-snug">Бичлэг хийгээгүй эсвэл ойлгомжгүй.</p></button><button onclick="rateSelf(3, 4, this)" class="rubric-btn p-3 rounded-xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition group"><span class="block text-xs font-bold text-yellow-500 mb-1 group-hover:text-yellow-600">Дунд (3-4)</span><p class="text-[10px] text-slate-500 leading-snug">Алгоритмын алхмуудыг зөвхөн тоочиж уншсан.</p></button><button onclick="rateSelf(3, 5, this)" class="rubric-btn p-3 rounded-xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition group"><span class="block text-xs font-bold text-green-500 mb-1 group-hover:text-green-600">Сайн (5)</span><p class="text-[10px] text-slate-500 leading-snug">Мэргэжлийн үг хэллэг ашиглан тайлбарласан.</p></button></div></div>
+            </div>
+            <div class="text-center"><button onclick="window.print()" class="bg-indigo-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-800 shadow-lg active:scale-95 transition flex items-center gap-2 mx-auto"><span>🖨️</span> Үнэлгээний хуудсыг хэвлэх (PDF)</button><p class="text-[10px] text-slate-400 mt-2">Хэвлэх товчийг дарахад A4 хувилбар гарч ирнэ.</p></div>
+        </section>
+
+        <!-- Printable Worksheet Section (Matches Display Version) -->
+        <div id="printableWorksheet" class="hidden bg-white text-black p-8 max-w-[210mm] mx-auto text-sm leading-relaxed font-serif">
+            <!-- Header -->
+            <div class="border-b-2 border-black mb-6 pb-4 flex justify-between items-end">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 border border-gray-300 rounded-full flex items-center justify-center overflow-hidden"><img src="https://raw.githubusercontent.com/sodnomict-art/my-web-images/main/429003238_413778061128630_6168428532216527806_n_1251461419425659.png" alt="Logo" class="w-full h-full object-cover grayscale opacity-80"></div>
+                    <div><p class="text-[10px] font-bold uppercase tracking-widest text-gray-500">ГУУЛИН ТОСГОНЫ УЛСЫН ТЭРГҮҮНИЙ ЕБС</p><h1 class="text-2xl font-bold uppercase tracking-wide mt-1">Мэдээллийн Технологи</h1><p class="text-sm italic text-gray-600">Сэдэв: Салаалсан алгоритм (9-р анги)</p></div>
+                </div>
+                <div class="text-right space-y-2 font-mono text-sm border-l border-gray-300 pl-4"><p>Сурагчийн нэр: __________________________</p><p>Анги: _________ &nbsp;&nbsp; Огноо: ______________</p></div>
+            </div>
+
+            <!-- 1. Key Concepts -->
+            <div class="mb-6 bg-gray-50 border border-gray-400 p-4 rounded-lg flex gap-6 items-start">
+                <div class="w-2/3"><h3 class="font-bold text-base mb-2 uppercase text-gray-800 border-b border-gray-300 inline-block">📌 Онолын Санамж</h3><p class="mb-2 text-xs text-justify"><strong>Салаалсан алгоритм:</strong> Программын үйл ажиллагаа тодорхой нөхцөлөөс хамааран өөр өөр чиглэлд (салаа) хуваагдан гүйцэтгэгдэх бүтэц юм.</p><p class="text-xs"><strong>Түлхүүр үгс:</strong> <span class="font-mono">IF</span> (Хэрэв), <span class="font-mono">THEN</span> (Тэгвэл), <span class="font-mono">ELSE</span> (Үгүй бол)</p></div>
+                <div class="w-1/3 border-l border-gray-300 pl-4"><h4 class="font-bold text-xs mb-2">Блок схемийн дүрсүүд:</h4><ul class="text-xs space-y-2"><li class="flex items-center gap-2"><div class="w-6 h-6 border border-black rhombus transform scale-75"></div> : Нөхцөл шалгах</li><li class="flex items-center gap-2"><div class="w-6 h-4 border border-black"></div> : Үйлдэл</li><li class="flex items-center gap-2"><div class="w-6 h-4 border border-black parallelogram transform scale-75"></div> : Оролт / Гаралт</li></ul></div>
+            </div>
+            
+            <!-- 2. Section 1: Connect -->
+            <div class="mb-8">
+                <h3 class="font-bold text-base mb-3 border-b border-black inline-block pr-4">1. Харгалзуулж холбоно уу</h3><p class="text-xs text-gray-500 mb-4 italic">Зүүн талын дүрсүүдийг баруун талын үүрэгтэй нь шугам татаж холбоно уу.</p>
+                <div class="flex justify-between items-center px-8 relative">
+                    <div class="space-y-10 flex flex-col items-center z-10"><div class="w-24 h-10 border-2 border-black rounded-full flex items-center justify-center text-xs font-bold bg-white">A</div><div class="w-24 h-10 border-2 border-black parallelogram flex items-center justify-center text-xs font-bold bg-white">B</div><div class="w-14 h-14 border-2 border-black rhombus flex items-center justify-center text-xs font-bold bg-white">C</div></div>
+                    <div class="absolute inset-0 flex justify-center items-center pointer-events-none"><div class="w-1/2 h-full border-l border-r border-dashed border-gray-200"></div></div>
+                    <div class="space-y-10 flex flex-col w-48 z-10"><div class="h-10 flex items-center border-b border-gray-400 text-sm">1. Нөхцөл шалгах</div><div class="h-10 flex items-center border-b border-gray-400 text-sm">2. Эхлэл / Төгсгөл</div><div class="h-10 flex items-center border-b border-gray-400 text-sm">3. Оролт / Гаралт</div></div>
+                </div>
+            </div>
+
+            <!-- 3. Section 2: Code Tracing -->
+            <div class="mb-8 break-inside-avoid">
+                <h3 class="font-bold text-base mb-3 border-b border-black inline-block pr-4">2. Алгоритмын мөрөөр мөшгих</h3>
+                <div class="flex gap-8 items-start">
+                    <div class="w-5/12"><div class="font-mono text-xs bg-gray-100 p-4 border border-gray-800 rounded relative shadow-sm"><div class="absolute -top-2 -right-2 bg-black text-white px-2 py-0.5 text-[10px]">Код</div><p>1. INPUT <strong>score</strong></p><p>2. IF (score >= 60) THEN</p><p class="pl-4">3. status = "Тэнцсэн"</p><p>4. ELSE</p><p class="pl-4">5. status = "Унасан"</p><p>6. PRINT status</p></div></div>
+                    <div class="w-7/12"><p class="mb-2 text-xs">Хэрэв <strong>score = 45</strong> гэж оруулбал хүснэгтийг гүйцээнэ үү:</p><table class="w-full border border-black text-xs"><tr class="bg-gray-200"><th class="border border-black p-2 text-left">Алхам</th><th class="border border-black p-2 text-left">Тайлбар / Шалгуур</th><th class="border border-black p-2 text-left">Үр дүн</th></tr><tr><td class="border border-black p-2">2</td><td class="border border-black p-2">45 >= 60 үнэн үү?</td><td class="border border-black p-2 italic text-gray-500">Үгүй (False)</td></tr><tr><td class="border border-black p-2">4 -> 5</td><td class="border border-black p-2">ELSE салаа руу очно</td><td class="border border-black p-2 font-mono">status = "<span class="text-white bg-white w-10 inline-block border-b border-black text-black">?</span>"</td></tr><tr><td class="border border-black p-2">7</td><td class="border border-black p-2">Дэлгэцэнд хэвлэнэ</td><td class="border border-black p-2 font-bold">Гаралт: _________</td></tr></table></div>
+                </div>
+            </div>
+
+            <!-- 5. Self Reflection -->
+            <div class="border-t-2 border-black pt-4 flex gap-8 text-xs">
+                <div class="w-1/2"><h4 class="font-bold mb-3 uppercase tracking-wide">Өөрийн үнэлгээ:</h4><div class="space-y-2"><label class="flex items-center gap-2 cursor-pointer"><div class="w-4 h-4 border border-black rounded-sm"></div> Салаалсан бүтэц (IF/ELSE)-ийг ойлгосон</label><label class="flex items-center gap-2 cursor-pointer"><div class="w-4 h-4 border border-black rounded-sm"></div> Блок схемийн дүрсийг ялгаж чадна</label></div></div>
+                <div class="w-1/2 flex flex-col items-end"><div class="border-2 border-gray-800 p-4 w-32 h-full rounded flex flex-col justify-between items-center bg-gray-50"><span class="font-bold text-gray-500 uppercase text-[10px] tracking-widest">Багшийн үнэлгээ</span><div class="text-center"><span class="text-3xl font-black block">___</span><span class="text-[10px] border-t border-black w-full block pt-1">100 оноо</span></div></div></div>
+            </div>
+            
+            <div class="mt-6 text-center text-[9px] text-gray-400 border-t border-gray-200 pt-2">© 2025 Гуулин тосгоны ЕБС | Мэдээлэл зүйн кабинет | Багш: Б.Содномбалжир</div>
+        </div>
+
+    </main>
+
+    <!-- Navigation Controls -->
+    <div id="navigation-bar" class="fixed bottom-0 left-0 w-full p-4 bg-white/80 backdrop-blur border-t border-slate-200 flex justify-between items-center z-30">
+        <button id="prevBtn" onclick="changeSlide(-1)" class="px-6 py-3 rounded-xl bg-slate-200 text-slate-600 font-bold hover:bg-slate-300 disabled:opacity-50 transition active:scale-95 shadow-sm">
+            ← Өмнөх
+        </button>
+        <div class="flex gap-1.5 overflow-x-auto max-w-[200px] px-2 hide-scrollbar" id="dots-container">
+            <!-- Dots generated by JS -->
+        </div>
+        <button id="nextBtn" onclick="changeSlide(1)" class="px-6 py-3 rounded-xl bg-indigo-900 text-white font-bold hover:bg-indigo-800 disabled:opacity-50 transition shadow-lg shadow-indigo-300 active:scale-95">
+            Дараах →
+        </button>
+    </div>
+
+    <script>
+        // --- Utility: Toast Notification ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let icon = 'ℹ️';
+            if (type === 'success') icon = '✅';
+            if (type === 'error') icon = '⚠️';
+            
+            toast.className = `toast border-l-4 ${type === 'success' ? 'border-green-500' : type === 'error' ? 'border-red-500' : 'border-blue-500'}`;
+            toast.innerHTML = `<span class="text-lg">${icon}</span> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- 1. Slide Navigation System ---
+        let currentSlide = 0; // Set initial slide to 1 (Index 0)
+        const slides = document.querySelectorAll('.slide-container');
+        const indicator = document.getElementById('slide-indicator');
+        const dotsContainer = document.getElementById('dots-container');
+
+        // Set Date
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('mn-MN');
+
+        function initNavigation() {
+            // Generate dots
+            dotsContainer.innerHTML = '';
+            slides.forEach((_, index) => {
+                const dot = document.createElement('button');
+                // Adjust dot highlighting for initial slide 2
+                dot.className = `w-2.5 h-2.5 rounded-full transition-all ${index === currentSlide ? 'bg-indigo-800 scale-125' : 'bg-slate-300 hover:bg-slate-400'}`;
+                dot.onclick = () => {
+                    // Quick jump
+                    slides[currentSlide].classList.remove('active-slide');
+                    slides[currentSlide].style.display = 'none';
+                    currentSlide = index;
+                    slides[currentSlide].style.display = 'block';
+                    setTimeout(() => slides[currentSlide].classList.add('active-slide'), 10);
+                    updateNavigation();
+                };
+                dotsContainer.appendChild(dot);
+            });
+            updateNavigation();
+        }
+
+        function changeSlide(direction) {
+            const nextIndex = currentSlide + direction;
+            if (nextIndex >= 0 && nextIndex < slides.length) {
+                // Remove active class
+                slides[currentSlide].classList.remove('active-slide');
+                slides[currentSlide].style.display = 'none'; // Ensure hide immediately
+                
+                // Update index
+                currentSlide = nextIndex;
+                
+                // Add active class with slight delay for animation
+                setTimeout(() => {
+                    slides[currentSlide].style.display = 'block';
+                    // Trigger reflow
+                    void slides[currentSlide].offsetWidth; 
+                    slides[currentSlide].classList.add('active-slide');
+                }, 10);
+
+                updateNavigation();
+            }
+        }
+
+        function updateNavigation() {
+            indicator.textContent = `${currentSlide + 1} / ${slides.length}`;
+            document.getElementById('prevBtn').disabled = currentSlide === 0;
+            document.getElementById('nextBtn').disabled = currentSlide === slides.length - 1;
+            
+            // Update dots
+            const dots = dotsContainer.children;
+            for(let i=0; i<dots.length; i++) {
+                dots[i].className = `w-2.5 h-2.5 rounded-full transition-all flex-shrink-0 ${i === currentSlide ? 'bg-indigo-800 scale-125' : 'bg-slate-300'}`;
+            }
+
+            // Scroll top
+            document.getElementById('main-content').scrollTo({top:0, behavior:'smooth'});
+        }
+
+        // --- 2. Weather Simulation ---
+        const tempRange = document.getElementById('tempRange');
+        const tempDisplay = document.getElementById('tempDisplay');
+        const avatarContainer = document.getElementById('avatarContainer');
+        const visualAvatar = document.getElementById('visualAvatar');
+        const decisionResult = document.getElementById('decisionResult');
+
+        // Safety check for tempRange
+        if (tempRange) {
+            tempRange.addEventListener('input', (e) => {
+                const temp = parseInt(e.target.value);
+                tempDisplay.textContent = `${temp > 0 ? '+' : ''}${temp}°C`;
+
+                if (temp < 0) {
+                    avatarContainer.className = "flex flex-col items-center justify-center rounded-3xl p-8 shadow-sm border border-slate-200 relative overflow-hidden transition-all duration-500 bg-blue-100 min-h-[200px]";
+                    visualAvatar.textContent = "🥶";
+                    decisionResult.textContent = "Маш хүйтэн байна, зузаан куртка, малгай өмс.";
+                } else if (temp < 15) {
+                    avatarContainer.className = "flex flex-col items-center justify-center rounded-3xl p-8 shadow-sm border border-slate-200 relative overflow-hidden transition-all duration-500 bg-white min-h-[200px]";
+                    visualAvatar.textContent = "🧥";
+                    decisionResult.textContent = "Сэрүүн байна, пальто эсвэл нимгэн куртка өмс.";
+                } else {
+                    avatarContainer.className = "flex flex-col items-center justify-center rounded-3xl p-8 shadow-sm border border-slate-200 relative overflow-hidden transition-all duration-500 bg-orange-50 min-h-[200px]";
+                    visualAvatar.textContent = "👕";
+                    decisionResult.textContent = "Дулаахан байна, подволк өмсөхөд хангалттай.";
+                }
+            });
+        }
+
+        // --- 3. Clickable Shapes Logic (Section 3) ---
+        function showShapeInfo(type, btn) {
+            const descBox = document.getElementById('shapeDescription');
+            document.querySelectorAll('.shape-btn').forEach(b => {
+                b.classList.remove('bg-slate-700', 'border-white/40', 'scale-105');
+                b.classList.add('bg-slate-800/50', 'border-slate-700');
+            });
+            btn.classList.remove('bg-slate-800/50', 'border-slate-700');
+            btn.classList.add('bg-slate-700', 'border-white/40', 'scale-105');
+
+            let title = "", text = "", colorClass = "";
+            switch(type) {
+                case 'start': title = "ЭХЛЭЛ / ТӨГСГӨЛ"; text = "Алгоритм эхлэх болон дуусахыг тэмдэглэнэ."; colorClass = "text-orange-300"; break;
+                case 'io': title = "ОРОЛТ / ГАРАЛТ"; text = "Өгөгдөл оруулах болон үр дүнг хэвлэх үйлдлийг тэмдэглэнэ."; colorClass = "text-blue-300"; break;
+                case 'decision': title = "НӨХЦӨЛ ШАЛГАХ"; text = "Нөхцөл шалгаж 'Тийм' эсвэл 'Үгүй' салаа руу шилжинэ."; colorClass = "text-red-300"; break;
+                case 'process': title = "ҮЙЛДЭЛ"; text = "Тооцоолол хийх, утга оноох зэрэг үндсэн үйлдлийг тэмдэглэнэ."; colorClass = "text-indigo-300"; break;
+            }
+
+            descBox.style.opacity = '0';
+            setTimeout(() => {
+                descBox.innerHTML = `<h4 class="font-bold mb-1 ${colorClass}">${title}</h4><p class="text-slate-300 text-xs leading-snug">${text}</p>`;
+                descBox.style.opacity = '1';
+            }, 150);
+        }
+
+        // --- 4. Level 1 Logic ---
+        function checkLevel1(isCorrect, btn) {
+            const feedback = document.getElementById('feedback1');
+            const btns = btn.parentElement.querySelectorAll('button');
+            btns.forEach(b => b.classList.remove('bg-green-50', 'border-green-500', 'bg-red-50', 'border-red-300'));
+            if (isCorrect) {
+                btn.classList.add('bg-green-50', 'border-green-500');
+                feedback.innerHTML = "<span class='text-green-600'>✅ Зөв байна!</span>";
+                showToast("Зөв хариуллаа!", "success");
+            } else {
+                btn.classList.add('bg-red-50', 'border-red-300');
+                feedback.innerHTML = "<span class='text-red-500'>❌ Буруу.</span>";
+                showToast("Дахин оролдоорой", "error");
+            }
+        }
+
+        // --- 5. Level 2 SortableJS ---
+        var el = document.getElementById('stepsContainer');
+        if (el) { Sortable.create(el, { animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag' }); }
+
+        function checkStepOrder() {
+            const steps = document.querySelectorAll('.step-card');
+            const currentOrder = Array.from(steps).map(step => parseInt(step.dataset.order));
+            const correctOrder = [1, 2, 3, 4, 5];
+            const isCorrect = JSON.stringify(currentOrder) === JSON.stringify(correctOrder);
+            const feedback = document.getElementById('stepFeedback');
+            if(isCorrect) {
+                feedback.innerHTML = "<span class='text-green-600'>✅ Маш сайн! Дараалал зөв байна.</span>";
+                showToast("Дараалал зөв байна!", "success");
+            } else {
+                feedback.innerHTML = "<span class='text-red-500'>❌ Дараалал буруу байна.</span>";
+                showToast("Дараалал буруу байна", "error");
+            }
+        }
+
+        // --- 6. Level 3 Grade Logic ---
+        function calculateGrade() {
+            const input = document.getElementById('gradeInput');
+            const score = parseInt(input.value);
+            const steps = document.getElementById('gradeSteps');
+            const finalBox = document.getElementById('finalGradeBox');
+            const gradeLetter = document.getElementById('gradeLetter');
+            const gradeMsg = document.getElementById('gradeMsg');
+            const time = document.getElementById('gradeTime');
+
+            if (input.value === "" || isNaN(score) || score < 0 || score > 100) { showToast("0-100 хооронд оноо оруулна уу!", "error"); return; }
+
+            steps.innerHTML = '';
+            finalBox.classList.add('hidden');
+            time.textContent = new Date().toLocaleTimeString();
+
+            const logTrace = (msg, delay) => { setTimeout(() => { const p = document.createElement('div'); p.className = "border-l-2 border-indigo-500 pl-2 animate-pulse mb-1"; p.innerHTML = msg; steps.appendChild(p); steps.scrollTop = steps.scrollHeight; }, delay); };
+
+            logTrace(`<span class="text-indigo-400">INPUT:</span> ${score}`, 0);
+            
+            let letter = '', msg = '', delay = 300;
+            if (score >= 90) { letter = 'A'; msg = "Маш сайн!"; } 
+            else if (score >= 80) { letter = 'B'; msg = "Сайн байна."; } 
+            else if (score >= 70) { letter = 'C'; msg = "Дунд."; } 
+            else if (score >= 60) { letter = 'D'; msg = "Хангалттай."; } 
+            else { letter = 'F'; msg = "Хангалтгүй."; }
+
+            setTimeout(() => {
+                finalBox.classList.remove('hidden');
+                gradeLetter.textContent = letter;
+                gradeLetter.className = `text-6xl font-black animate-bounce inline-block ${letter === 'F' ? 'text-red-500' : 'text-green-400'}`;
+                gradeMsg.textContent = msg;
+                showToast("Тооцоолол дууслаа", "success");
+            }, delay + 500);
+        }
+
+        // --- 7. Level 4 Traffic Light ---
+        function testTraffic(color) {
+            const output = document.getElementById('trafficOutput');
+            const r = document.getElementById('lightRed');
+            const y = document.getElementById('lightYellow');
+            const g = document.getElementById('lightGreen');
+            r.className = y.className = g.className = "w-16 h-16 rounded-full bg-opacity-40 transition-all duration-300 border-4 border-black/20 shadow-inner";
+            r.classList.add('bg-red-900'); y.classList.add('bg-yellow-900'); g.classList.add('bg-green-900');
+            output.className = "p-6 bg-slate-800 rounded-2xl text-center font-bold text-slate-400 min-h-[80px] flex items-center justify-center transition-all duration-300 shadow-inner text-lg";
+
+            if (color === 'red') { r.classList.remove('bg-red-900'); r.classList.add('bg-red-500', 'shadow-[0_0_30px_rgba(239,68,68,0.8)]', 'scale-110'); output.textContent = "STOP! Зогс."; output.classList.add('bg-red-500', 'text-white'); }
+            else if (color === 'yellow') { y.classList.remove('bg-yellow-900'); y.classList.add('bg-yellow-400', 'shadow-[0_0_30px_rgba(250,204,21,0.8)]', 'scale-110'); output.textContent = "WAIT! Бэлд."; output.classList.add('bg-yellow-500', 'text-white'); }
+            else { g.classList.remove('bg-green-900'); g.classList.add('bg-green-500', 'shadow-[0_0_30px_rgba(34,197,94,0.8)]', 'scale-110'); output.textContent = "GO! Яв."; output.classList.add('bg-green-600', 'text-white'); }
+        }
+
+        // --- 8. Level 5 Logic Check ---
+        function checkLogic(answer, btn) {
+            const feedback = document.getElementById('logicFeedback');
+            const btns = document.getElementById('logicButtons').children;
+            for(let b of btns) { b.className = "p-5 border-2 rounded-2xl hover:bg-slate-50 font-bold text-xl transition hover:border-slate-300 bg-white text-slate-700"; }
+
+            if (answer === 6) {
+                btn.className = "p-5 border-2 rounded-2xl font-bold text-xl transition bg-green-100 border-green-500 text-green-700";
+                feedback.innerHTML = "<span class='text-green-600'>✅ Зөв байна!</span> 12 нь тэгш тоо тул 12 / 2 = 6.";
+                showToast("Зөв хариулт!", "success");
+            } else {
+                btn.className = "p-5 border-2 rounded-2xl font-bold text-xl transition bg-red-100 border-red-500 text-red-700";
+                feedback.innerHTML = "<span class='text-red-500'>❌ Буруу.</span>";
+                showToast("Буруу хариулт", "error");
+            }
+        }
+
+        // --- 9. Voice & QR ---
+        const recordBtn = document.getElementById('recordBtn');
+        let isRecording = false;
+        if (recordBtn) {
+            recordBtn.addEventListener('click', () => {
+                if(!isRecording) {
+                    isRecording = true;
+                    document.getElementById('recordText').textContent = "Зогсоох (Demo)";
+                    recordBtn.classList.add('bg-red-50', 'text-red-600');
+                    showToast("Бичлэг эхэллээ (Demo)", "info");
+                } else {
+                    isRecording = false;
+                    document.getElementById('recordText').textContent = "Бичлэг эхлүүлэх";
+                    recordBtn.classList.remove('bg-red-50', 'text-red-600');
+                    document.getElementById('audioArea').classList.remove('hidden');
+                    showToast("Бичлэг хадгалагдлаа", "success");
+                }
+            });
+        }
+
+        new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 100, height: 100, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
+
+        function copyLink() {
+            const el = document.createElement('textarea');
+            el.value = window.location.href;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast("Холбоосыг хууллаа", "success");
+        }
+
+        // --- 10. Rubric Calculation ---
+        let currentScores = {1:0, 2:0, 3:0};
+        function rateSelf(criterion, score, btn) {
+            currentScores[criterion] = score;
+            const parent = btn.parentElement;
+            parent.querySelectorAll('.rubric-btn').forEach(b => b.classList.remove('selected', 'bg-blue-50', 'border-blue-500'));
+            btn.classList.add('selected', 'bg-blue-50', 'border-blue-500');
+
+            const total = currentScores[1] + currentScores[2] + currentScores[3];
+            document.getElementById('totalScore').textContent = `${total}/15`;
+            
+            let verdictText = "ХАНГАЛТГҮЙ (F)";
+            if (total === 15) verdictText = "МАШ САЙН! (А)";
+            else if (total >= 10) verdictText = "САЙН (B)";
+            else if (total >= 5) verdictText = "ДУНД (C)";
+            
+            document.getElementById('finalVerdict').textContent = verdictText;
+        }
+
+        // --- 11. REVISED Interactive Worksheet Logic (Updated) ---
+        function checkWorksheetRevised() {
+            const q1 = document.getElementById('ws-q1').value;
+            const q2 = document.getElementById('ws-q2').value;
+            const flow = document.querySelector('input[name="ws-flow"]:checked')?.value;
+            const trace1 = document.getElementById('ws-trace1').value;
+            const trace2 = document.getElementById('ws-trace2').value.trim().toLowerCase();
+            const feedback = document.getElementById('ws-revised-feedback');
+
+            let score = 0;
+            // Q1: Rhombus = Decision
+            if (q1 === 'decision') score++;
+            // Q2: Parallelogram = IO
+            if (q2 === 'io') score++;
+            // Q3: Flowchart missing = Decision (Correct)
+            if (flow === 'correct') score++;
+            // Q4: Trace1 (False)
+            if (trace1 === 'false') score++;
+            // Q5: Trace2 (Унасан)
+            if (trace2 === 'унасан' || trace2 === '"унасан"') score++;
+
+            if (score === 5) {
+                feedback.innerHTML = `<div class="bg-green-100 text-green-700 p-4 rounded-xl border border-green-200">🎉 Гайхалтай! Бүх 5 дасгал зөв байна.</div>`;
+                showToast("Бүгд зөв байна!", "success");
+            } else {
+                feedback.innerHTML = `<div class="bg-orange-50 text-orange-700 p-4 rounded-xl border border-orange-200">Та ${score}/5 оноо авлаа. Дахин шалгана уу.</div>`;
+                showToast("Зарим хариулт буруу байна", "error");
+            }
+        }
+
+        // Initialize App
+        initNavigation();
+
+    </script>
+</body>
+</html>
